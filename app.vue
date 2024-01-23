@@ -1,11 +1,9 @@
 <template>
   <div>
-    <p>EOA address : {{ this.eoaAddress }}</p>
-    <p>Avocado address : {{ this.avocadoAddress }}</p>
-    <button @click="getBalance(this.eoaAddress)">Get EOA balance</button>
-    <button @click="getBalance(this.avocadoAddress)">
-      Get Avocado balance
-    </button>
+    <p>EOA address : {{ eoaAddress }}</p>
+    <p>Avocado address : {{ avocadoAddress }}</p>
+    <button @click="getBalance(eoaAddress)">Get EOA balance</button>
+    <button @click="getBalance(avocadoAddress)">Get Avocado balance</button>
     <button @click="transferAll">Transfer</button>
     <p>EOA Balance</p>
     <ul>
@@ -37,29 +35,27 @@
 </template>
 
 <script>
+import { ref, onMounted } from "vue";
 import { ethers } from "ethers";
 import { CovalentClient } from "@covalenthq/client-sdk";
 
 export default {
-  data() {
-    return {
-      eoaAddress: null,
-      avocadoAddress: null,
-      eoaBalance: [],
-      avocadoBalance: [],
-    };
-  },
-  async created() {
-    this.eoaAddress = await this.getMetamask();
-    await this.createAvocadoAddress(this.eoaAddress);
-  },
-  methods: {
-    async getMetamask() {
+  setup() {
+    const eoaAddress = ref(null);
+    const avocadoAddress = ref(null);
+    const eoaBalance = ref([]);
+    const avocadoBalance = ref([]);
+
+    onMounted(async () => {
+      eoaAddress.value = await getMetamask();
+      await createAvocadoAddress(eoaAddress.value);
+    });
+
+    async function getMetamask() {
       if (process.client && window.ethereum) {
         try {
           // Request account access
           await window.ethereum.enable();
-          this.ethereum = window.ethereum;
 
           // After user grants account access, you can get the accounts.
           const accounts = await window.ethereum.request({
@@ -76,8 +72,8 @@ export default {
           "Non-Ethereum browser detected. You should consider trying MetaMask!"
         );
       }
-    },
-    async createAvocadoAddress(eoaAddress) {
+    }
+    async function createAvocadoAddress(eoaAddress) {
       if (process.client && window.ethereum) {
         const forwarderABI = [
           {
@@ -123,7 +119,7 @@ export default {
           provider
         );
 
-        this.avocadoAddress = await contract.computeAvocado(eoaAddress, 0);
+        avocadoAddress.value = await contract.computeAvocado(eoaAddress, 0);
 
         console.log(
           await avoProvider.send(
@@ -133,14 +129,14 @@ export default {
           )
         ); // All deployed safes
       }
-    },
-    async transferAll() {
+    }
+    async function transferAll() {
       await this.switchNetwork("0x13881");
       await this.transferTokens(this.eoaBalance[1].data[0].balance);
       await this.switchNetwork("0xaa36a7");
       await this.transferTokens(this.eoaBalance[0].data[0].balance);
-    },
-    async switchNetwork(chainId) {
+    }
+    async function switchNetwork(chainId) {
       const networks = {
         "0x13881": {
           chainName: "Mumbai Testnet",
@@ -196,8 +192,8 @@ export default {
           }
         }
       }
-    },
-    async transferTokens(balance) {
+    }
+    async function transferTokens(balance) {
       if (process.client && window.ethereum) {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
@@ -217,8 +213,8 @@ export default {
         const receipt = await tx.wait();
         console.log("Reciept: ", receipt);
       }
-    },
-    async getBalance(address) {
+    }
+    async function getBalance(address) {
       const client = new CovalentClient("cqt_rQMrFKW3YpHMk4X7VcgvXvrHXdVJ");
       const ethResponse =
         await client.BalanceService.getTokenBalancesForWalletAddress(
@@ -230,9 +226,10 @@ export default {
           "matic-mumbai",
           address
         );
-      console.log(polygonResponse);
-      if (this.eoaAddress === address) {
-        this.eoaBalance = [
+      console.log(address === eoaAddress.value, "sda");
+      if (eoaAddress.value === address) {
+        console.log("inside if");
+        eoaBalance.value = [
           {
             chain: "Ethereum Sepolia",
             data: ethResponse.data.items,
@@ -242,8 +239,8 @@ export default {
             data: polygonResponse.data.items,
           },
         ];
-      } else if (this.avocadoAddress === address) {
-        this.avocadoBalance = [
+      } else if (avocadoAddress.value === address) {
+        avocadoBalance.value = [
           {
             chain: "Ethereum Sepolia",
             data: ethResponse.data.items,
@@ -254,7 +251,20 @@ export default {
           },
         ];
       }
-    },
+      console.log(eoaBalance.value, "eoaBalance.value");
+    }
+    return {
+      eoaAddress,
+      avocadoAddress,
+      eoaBalance,
+      avocadoBalance,
+      getMetamask,
+      createAvocadoAddress,
+      transferAll,
+      switchNetwork,
+      transferTokens,
+      getBalance,
+    };
   },
 };
 </script>
